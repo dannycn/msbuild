@@ -766,13 +766,7 @@ namespace Microsoft.Build.BackEnd
                         int lengthToWrite = Math.Min(writeStreamLength - i, MaxPacketWriteSize);
                         if (writeStreamLength - i <= MaxPacketWriteSize)
                         {
-                            // We are done, write the last bit asynchronously.  This is actually the general case for
-                            // most packets in the build, and the asynchronous behavior here is desirable.
-#if FEATURE_APM
-                            _serverToClientStream.BeginWrite(writeStreamBuffer, i, lengthToWrite, PacketWriteComplete, null);
-#else
                             _serverToClientStream.Write(writeStreamBuffer, i, lengthToWrite);
-#endif
                             return;
                         }
                         else
@@ -781,12 +775,7 @@ namespace Microsoft.Build.BackEnd
                             // return out of this function and let the rest of the system continue because another operation
                             // might want to send data immediately afterward, and that could result in overlapping writes
                             // to the pipe on different threads.
-#if FEATURE_APM
-                            IAsyncResult result = _serverToClientStream.BeginWrite(writeStreamBuffer, i, lengthToWrite, null, null);
-                            _serverToClientStream.EndWrite(result);
-#else
                             _serverToClientStream.Write(writeStreamBuffer, i, lengthToWrite);
-#endif
                         }
                     }
                 }
@@ -813,23 +802,6 @@ namespace Microsoft.Build.BackEnd
                 }
                 _terminateDelegate(_nodeId);
             }
-
-#if FEATURE_APM
-            /// <summary>
-            /// Completes the asynchronous packet write to the node.
-            /// </summary>
-            private void PacketWriteComplete(IAsyncResult result)
-            {
-                try
-                {
-                    _serverToClientStream.EndWrite(result);
-                }
-                catch (IOException)
-                {
-                    // Do nothing here because any exception will be caught by the async read handler
-                }
-            }
-#endif
 
             private bool ProcessHeaderBytesRead(int bytesRead)
             {
